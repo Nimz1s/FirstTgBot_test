@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <tgbot/tgbot.h>
 #include <string>
+#include <cstdlib>
+#include <ctime>
+#include <curl/curl.h>
 
 #define SQLITECPP_COMPILE_DLL
 #include <SQLiteCPP/SQLiteCpp.h>
@@ -11,47 +14,499 @@
 
 
 SQLite::Database db("test.db", SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
+long messageId = -1;
 
 
+
+
+void firstMiniGame(const int64_t queryId, int messageId) {
+    std::srand(static_cast<unsigned int>(std::time(NULL)));
+    TgBot::Bot bot1("7513748253:AAFeoH9uDS-HR81BtjetPG5XzZq4l4EZadg");
+    std::cout << "chat from Id" << queryId << std::endl;
+
+    int znak = rand() % 4;
+    int numbers = 1 + rand() % 2;
+
+    char getZnak;
+    switch (znak)
+    {
+    case 0:
+        getZnak = '+';
+        break;
+    case 1:
+        getZnak = '-';
+        break;
+    case 2:
+        getZnak = '*';
+        break;
+
+    case 3:
+        getZnak = '/';
+        break;
+    }
+
+    int num1 = 0;
+    int num2 = 0;
+    int num3 = 0;
+
+    switch (numbers)
+    {
+    case 1:
+        num1 = rand() % 100;
+        num2 = rand() % 10;
+        break;
+    case 2:
+        num1 = rand() % 100;
+        num2 = rand() % 10;
+        break;
+    case 3:
+        num1 = rand() % 100;
+        num2 = rand() % 10;
+        break;
+    }
+
+
+
+    TgBot::InlineKeyboardMarkup::Ptr keyboardGame(new TgBot::InlineKeyboardMarkup);
+    TgBot::InlineKeyboardButton::Ptr Button1(new TgBot::InlineKeyboardButton);
+    TgBot::InlineKeyboardButton::Ptr Button2(new TgBot::InlineKeyboardButton);
+    TgBot::InlineKeyboardButton::Ptr Button3(new TgBot::InlineKeyboardButton);
+
+    Button1->text = " ";
+    Button2->text = " ";
+    Button3->text = " ";
+    Button1->callbackData = "Game";
+    Button2->callbackData = "Game";
+    Button3->callbackData = "Game";
+    keyboardGame->inlineKeyboard.push_back({ Button1 });
+    keyboardGame->inlineKeyboard.push_back({ Button2 });
+    keyboardGame->inlineKeyboard.push_back({ Button3 });
+
+    int result = 0;
+    int fakeResult = 0;
+    int position = rand() % 3;
+    int fakeResult1, fakeResult2;
+
+    switch (getZnak)
+    {
+    case '+':
+    {
+        try {
+            result = num1 + num2;
+
+            int fakeResult1, fakeResult2;
+            fakeResult1 = result + (rand() % 10) + 1;
+            fakeResult2 = result - (rand() % 10) + 1;
+
+            switch (position)
+            {
+            case 0:
+            {
+                Button1->text = std::to_string(result);
+
+
+                while (fakeResult1 == result || fakeResult2 == result)
+                {
+                    fakeResult1 = result + (rand() % 10) + 1;
+                    fakeResult2 = result - (rand() % 10) + 1;
+                }
+                Button2->text = std::to_string(fakeResult1);
+                Button3->text = std::to_string(fakeResult2);
+
+                Button2->callbackData = "ENDgame";
+                Button3->callbackData = "ENDgame";
+
+
+
+            }
+            break;
+            case 1:
+            {
+                Button2->text = std::to_string(result);
+
+                while (fakeResult1 == result || fakeResult2 == result)
+                {
+                    fakeResult1 = result + (rand() % 10) + 1;
+                    fakeResult2 = result - (rand() % 10) + 1;
+                }
+                Button1->text = std::to_string(fakeResult1);
+                Button3->text = std::to_string(fakeResult2);
+
+
+                Button1->callbackData = "ENDgame";
+                Button3->callbackData = "ENDgame";
+            }
+            break;
+            case 2:
+            {
+                Button3->text = std::to_string(result);
+
+                while (fakeResult1 == result || fakeResult2 == result)
+                {
+                    fakeResult1 = result + (rand() % 10) + 1;
+                    fakeResult2 = result - (rand() % 10) + 1;
+                }
+                Button2->text = std::to_string(fakeResult1);
+                Button1->text = std::to_string(fakeResult2);
+
+
+                Button2->callbackData = "ENDgame";
+                Button1->callbackData = "ENDgame";
+            }
+            break;
+            default:
+                break;
+            }
+            bot1.getApi().editMessageText(std::to_string(num1) + "+" + std::to_string(num2), queryId, messageId, "", "", false, keyboardGame);
+        }
+        catch (const std::exception& e) {
+            bot1.getApi().sendMessage(messageId, "Не вдалося змінити повідомлення: " + std::string(e.what()));
+        }
+    }
+    break;
+    case '-':
+    {
+        try {
+
+            result = num1 - num2;
+
+            fakeResult1 = result + (rand() % 9);
+            fakeResult2 = result - (rand() % 9);
+
+            switch (position)
+            {
+            case 0:
+            {
+                Button1->text = std::to_string(result);
+
+
+
+                while (fakeResult1 == result || fakeResult2 == result)
+                {
+                    fakeResult1 = result + (rand() % 9);
+                    fakeResult2 = result - (rand() % 9);
+                }
+                Button2->text = std::to_string(fakeResult1);
+                Button3->text = std::to_string(fakeResult2);
+
+
+                Button2->callbackData = "ENDgame";
+                Button3->callbackData = "ENDgame";
+
+
+
+            }
+            break;
+            case 1:
+            {
+                Button2->text = std::to_string(result);
+
+
+                while (fakeResult1 == result || fakeResult2 == result)
+                {
+                    fakeResult1 = result + (rand() % 9);
+                    fakeResult2 = result - (rand() % 9);
+                }
+                Button1->text = std::to_string(fakeResult1);
+                Button3->text = std::to_string(fakeResult2);
+
+                Button1->callbackData = "ENDgame";
+                Button3->callbackData = "ENDgame";
+
+            }
+            break;
+            case 2:
+            {
+                Button3->text = std::to_string(result);
+
+
+                while (fakeResult1 == result || fakeResult2 == result)
+                {
+                    fakeResult1 = result + (rand() % 9);
+                    fakeResult2 = result - (rand() % 9);
+                }
+                Button2->text = std::to_string(fakeResult1);
+                Button1->text = std::to_string(fakeResult2);
+
+                Button2->callbackData = "ENDgame";
+                Button1->callbackData = "ENDgame";
+
+            }
+            break;
+            default:
+                break;
+            }
+            bot1.getApi().editMessageText(std::to_string(num1) + "-" + std::to_string(num2), queryId, messageId, "", "", false, keyboardGame);
+        }
+        catch (const std::exception& e) {
+            bot1.getApi().sendMessage(messageId, "Не вдалося змінити повідомлення: " + std::string(e.what()));
+        }
+    }
+    break;
+    case '*':
+    {
+        try {
+            if (num1 == 0 || num2 == 0)
+            {
+                num1++;
+                num2++;
+            }
+            result = num1 * num2;
+
+            fakeResult1 = result + int(10 / (0.5 + double((rand() % 5 + 0.1) / 10)));
+            fakeResult2 = result - int(10 / (0.5 + double((rand() % 5 + 0.1) / 10)));
+
+
+            switch (position)
+            {
+            case 0:
+            {
+                Button1->text = std::to_string(result);
+
+
+                Button2->text = std::to_string(fakeResult1);
+                Button3->text = std::to_string(fakeResult2);
+
+                Button2->callbackData = "ENDgame";
+                Button3->callbackData = "ENDgame";
+
+
+            }
+            break;
+            case 1:
+            {
+                Button2->text = std::to_string(result);
+
+
+                Button1->text = std::to_string(fakeResult1);
+                Button3->text = std::to_string(fakeResult2);
+
+                Button1->callbackData = "ENDgame";
+                Button3->callbackData = "ENDgame";
+
+            }
+            break;
+            case 2:
+            {
+                Button3->text = std::to_string(result);
+
+
+                Button2->text = std::to_string(fakeResult1);
+                Button1->text = std::to_string(fakeResult2);
+
+                Button2->callbackData = "ENDgame";
+                Button1->callbackData = "ENDgame";
+
+            }
+            break;
+            default:
+                break;
+            }
+            bot1.getApi().editMessageText(std::to_string(num1) + "*" + std::to_string(num2), queryId, messageId, "", "", false, keyboardGame);
+        }
+        catch (const std::exception& e) {
+            bot1.getApi().sendMessage(messageId, "Не вдалося змінити повідомлення: " + std::string(e.what()));
+        }
+    }
+    break;
+    case '/':
+    {
+        try {
+
+            fakeResult1 = result + int(10 / (0.5 + double((rand() % 5 + 0.1) / 10)));
+            fakeResult2 = result - int(10 / (0.5 + double((rand() % 5 + 0.1) / 10)));
+
+
+            if (num1 == 0 || num2 == 0)
+            {
+                num1++;
+                num2++;
+            }
+            if (num1 < num2)
+            {
+                int a = num1;
+                num1 = num2;
+                num2 = a;
+            }
+            while ((num1 % num2) != 0)
+            {
+                num1++;
+            }
+            result = num1 / num2;
+
+            switch (position)
+            {
+            case 0:
+            {
+                Button1->text = std::to_string(result);
+
+
+                Button2->text = std::to_string(fakeResult1);
+                Button3->text = std::to_string(fakeResult2);
+
+                Button2->callbackData = "ENDgame";
+                Button3->callbackData = "ENDgame";
+
+
+
+            }
+            break;
+            case 1:
+            {
+                Button2->text = std::to_string(result);
+
+
+                Button1->text = std::to_string(fakeResult1);
+                Button3->text = std::to_string(fakeResult2);
+
+                Button1->callbackData = "ENDgame";
+                Button3->callbackData = "ENDgame";
+
+            }
+            break;
+            case 2:
+            {
+                Button3->text = std::to_string(result);
+
+
+                Button2->text = std::to_string(fakeResult1);
+                Button1->text = std::to_string(fakeResult2);
+
+                Button2->callbackData = "ENDgame";
+                Button1->callbackData = "ENDgame";
+            }
+            break;
+            default:
+                break;
+            }
+            bot1.getApi().editMessageText(std::to_string(num1) + "/" + std::to_string(num2), queryId, messageId, "", "", false, keyboardGame);
+        }
+        catch (const std::exception& e) {
+            bot1.getApi().sendMessage(messageId, "Не вдалося змінити повідомлення: " + std::string(e.what()));
+        }
+    }
+    break;
+    }
+
+    std::cout << "end func" << std::endl;
+}
+
+
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    size_t totalSize = size * nmemb;
+    std::ofstream* outFile = static_cast<std::ofstream*>(userp);
+    outFile->write(static_cast<char*>(contents), totalSize);
+    return totalSize;
+}
+// Функція для завантаження фото
+void downloadPhoto(const std::string& fileId, TgBot::Bot& bot, const std::string& savePath) {
+    // Отримуємо інформацію про фото через об'єкт бота
+    TgBot::File::Ptr file = bot.getApi().getFile(fileId);  // Тепер ми використовуємо TgBot::File::Ptr
+    std::string fileUrl = "https://api.telegram.org/file/bot" + bot.getToken() + "/" + file->filePath;  // Використовуємо "->" для доступу до властивостей
+
+    // Завантажуємо фото
+    CURL* curl;
+    CURLcode res;
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    if (curl) {
+        std::ofstream outFile(savePath, std::ios::binary);
+        curl_easy_setopt(curl, CURLOPT_URL, fileUrl.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outFile);
+
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            std::cerr << "cURL error: " << curl_easy_strerror(res) << std::endl;
+        }
+        curl_easy_cleanup(curl);
+    }
+    curl_global_cleanup();
+
+
+    //if (isValidImageFormat(savePath)) {
+    //    std::cout << "Фото збережено в " << savePath << std::endl;
+    //}
+    //else {
+    //    std::cerr << "Невірний формат фото. Фото не збережено!" << std::endl;
+    //    remove(savePath.c_str());  // Видаляємо файл, якщо формат неправильний
+    //}
+}
 
 
 
 
 int main() {
-    
-
-    db.exec("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY UNIQUE, idTg INT, userNikname TEXT, password TEXT, isLoginedProcces INT, isLogined INT)");
-
-
-    /*SQLite::Statement select(db, "SELECT * FROM persons");
-    while(select.executeStep())
-    {
-        std::cout << "Id: " << select.getColumn(0) << " Name: " << select.getColumn(1) << " Age: " << select.getColumn(2) << std::endl;
-    }*/
-
-    TgBot::InlineKeyboardMarkup::Ptr keyboardMain(new TgBot::InlineKeyboardMarkup);
-    TgBot::InlineKeyboardButton::Ptr buttonRegister(new TgBot::InlineKeyboardButton);
-    TgBot::InlineKeyboardButton::Ptr buttonLogin(new TgBot::InlineKeyboardButton);
-
-
-    buttonRegister->text = "Реєстрація";
-    buttonRegister->callbackData = "Register";
-
-    buttonLogin->text = "Логін";
-    buttonLogin->callbackData = "Login";
-
-
-    keyboardMain->inlineKeyboard.push_back({ buttonRegister });
-    keyboardMain->inlineKeyboard.push_back({ buttonLogin });
-    
-
-
-    
 
     TgBot::Bot bot("7513748253:AAFeoH9uDS-HR81BtjetPG5XzZq4l4EZadg");
+
+
+    db.exec("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY UNIQUE, idTg INT, displayNikname TEXT, userNikname TEXT, password TEXT, isLoginedProcces INT, isLogined INT)");
+    db.exec("CREATE TABLE IF NOT EXISTS leaderboard(id INTEGER PRIMARY KEY UNIQUE, idTg INT, score INT, maxScore INT)");
+    db.exec("CREATE TABLE IF NOT EXISTS photo_info(id INTEGER PRIMARY KEY UNIQUE, idTg INT, photoNewName TEXT, photoUserName TEXT)");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    try {
+        // Встановлюємо команди меню
+        std::vector<TgBot::BotCommand::Ptr> commands;
+
+        TgBot::BotCommand::Ptr startCommand(new TgBot::BotCommand);
+        startCommand->command = "start";
+        startCommand->description = "Запустити бота";
+        commands.push_back(startCommand);
+
+        TgBot::BotCommand::Ptr sendPhoto(new TgBot::BotCommand);
+        sendPhoto->command = "get_photo";
+        sendPhoto->description = "Відправити фото для збереження";
+        commands.push_back(sendPhoto);
+
+
+        bot.getApi().setMyCommands(commands); // Встановлення команд
+
+        std::cout << "Меню команд встановлено успішно!" << std::endl;
+
+    }
+    catch (TgBot::TgException& e) {
+        std::cerr << "Помилка: " << e.what() << std::endl;
+    }
+
+
+
+
+
+
+    TgBot::InlineKeyboardMarkup::Ptr keyboardMain(new TgBot::InlineKeyboardMarkup);
     bot.getEvents().onCommand("start", [&bot, keyboardMain](TgBot::Message::Ptr message) {
-        
-        
+
+        keyboardMain->inlineKeyboard.clear();
+        TgBot::InlineKeyboardButton::Ptr startGame(new TgBot::InlineKeyboardButton);
+        TgBot::InlineKeyboardButton::Ptr leaders(new TgBot::InlineKeyboardButton);
+
+
+        startGame->text = "Гра";
+        leaders->text = "Таблиця лідерів";
+
+        startGame->callbackData = "startGame";
+        leaders->callbackData = "leaders";
+
+        keyboardMain->inlineKeyboard.push_back({ leaders });
+        keyboardMain->inlineKeyboard.push_back({ startGame });
+
+
 
 
         SQLite::Statement query(db, "SELECT COUNT(*) FROM users WHERE idTg = :userID");
@@ -64,65 +519,390 @@ int main() {
             else {
                 std::cout << "ID" << message->chat->id << " not found." << std::endl;
                 // Добавляем данные
-                SQLite::Statement query(db, "INSERT INTO users(idTg, userNikname, isLoginedProcces, isLogined) VALUES(?, ?, ?, ?)");
+                SQLite::Statement query(db, "INSERT INTO users(idTg, displayNikname, isLoginedProcces, isLogined) VALUES(?, ?, ?, ?)");
                 query.bind(1, message->chat->id);
                 query.bind(2, "USER");
                 query.bind(3, 0);
                 query.bind(4, 0);
-                query.exec();
+                try {
+                    query.exec();
+                }
+                catch (const SQLite::Exception& e) {
+                    std::cerr << "Помилка при виконанні SQL: " << e.what() << std::endl;
+                }
             }
         }
 
 
 
         std::string userNikname;
-        SQLite::Statement insertQuery(db, "SELECT userNikname FROM users WHERE idTg = ?");
+        SQLite::Statement insertQuery(db, "SELECT displayNikname FROM users WHERE idTg = ?");
         insertQuery.bind(1, message->chat->id);
         if (insertQuery.executeStep()) {
             userNikname = insertQuery.getColumn(0).getString();
         }
-        bot.getApi().sendMessage(message->from->id, "Вітаю, " + userNikname + "!", false, 0, keyboardMain);
-    });
+
+
+
+        int isLogineds = 0;
+        SQLite::Statement main(db, "SELECT isLogined FROM users WHERE idTg = ?");
+        main.bind(1, message->chat->id);
+        if (main.executeStep()) {
+            isLogineds = main.getColumn(0).getInt();
+        }
+        if (isLogineds == 1)
+        {
+            TgBot::InlineKeyboardButton::Ptr Logout(new TgBot::InlineKeyboardButton);
+            Logout->text = "Вийти з акаунта";
+            Logout->callbackData = "Logout";
+            keyboardMain->inlineKeyboard.push_back({ Logout });
+        }
+        else
+        {
+
+            TgBot::InlineKeyboardButton::Ptr buttonRegister(new TgBot::InlineKeyboardButton);
+            TgBot::InlineKeyboardButton::Ptr buttonLogin(new TgBot::InlineKeyboardButton);
+
+
+            buttonRegister->text = "Реєстрація";
+            buttonRegister->callbackData = "Register";
+            buttonLogin->text = "Логін";
+            buttonLogin->callbackData = "Login";
+
+
+            keyboardMain->inlineKeyboard.push_back({ buttonRegister });
+            keyboardMain->inlineKeyboard.push_back({ buttonLogin });
+        }
+
+
+
+
+        bot.getApi().sendMessage(message->chat->id, "Вітаю, " + userNikname + "!", false, 0, keyboardMain);
+
+
+        });
+
+    bot.getEvents().onCommand("get_photo", [&bot](TgBot::Message::Ptr message) {
+
+
+        /*SQLite::Statement getIsLoginedProcces(db, "Update users SET isLoginedProcces = ? WHERE idTg = ?");
+        getIsLoginedProcces.bind(1, 6);
+        getIsLoginedProcces.bind(2, message->chat->id);
+        getIsLoginedProcces.exec();*/
+
+        bot.getApi().sendMessage(message->chat->id, "Ваше фото");
+        int64_t userId = message->chat->id;  // Замініть на ID користувача
+
+        std::string saveName = "loveyou";
+        // Шлях до фото на сервері
+        std::string photoPath = "AllPhoto\\" + saveName + ".jpg";  // Шлях до фото, яке ви хочете відправити
+
+        // Відправляємо фото користувачу
+        try {
+            bot.getApi().sendPhoto(userId, TgBot::InputFile::fromFile(photoPath, "image/jpeg"));
+            std::cout << "Фото відправлено!" << std::endl;
+        }
+        catch (TgBot::TgException& e) {
+            std::cerr << "Помилка: " << e.what() << std::endl;
+        }
+        });
+
+
+
+
+
 
 
     bot.getEvents().onCallbackQuery([&bot, &keyboardMain](TgBot::CallbackQuery::Ptr query) {
         if (query->data == "Register") {
-
             SQLite::Statement select(db, "SELECT isLogined FROM users WHERE idTg = ?");
             select.bind(1, query->from->id);
-            int isLogined ;
+            int isLogined = 0; // Ініціалізація змінної
+
             if (select.executeStep()) {
                 isLogined = select.getColumn(0).getInt();
-                std::cout << "isLogined: " << isLogined << std::endl;
-            } 
-            else {
-                std::cout << "Запит не знайшов жодного результату!" << std::endl;
             }
 
-            std::cout << isLogined << query->from->id  << std::endl;
-            if (isLogined == 1)
-            {
+            if (isLogined == 1) {
                 bot.getApi().sendMessage(query->from->id, "Ви уже увійшли в акаунт!");
             }
-            else
-            {
+            else {
                 SQLite::Statement registred(db, "UPDATE users SET isLoginedProcces = ? WHERE idTg = ?");
                 registred.bind(1, 1);
                 registred.bind(2, query->from->id);
                 registred.exec();
 
-                bot.getApi().sendMessage(query->from->id, "Придумайте логін: ");
-            } 
+                bot.getApi().sendMessage(query->message->chat->id, "Придумайте логін: ");
+            }
         }
-        else if (query->data == "Login")
+        else if (query->data == "Login") {
+            SQLite::Statement login(db, "UPDATE users SET isLoginedProcces = ? WHERE idTg = ?");
+            login.bind(1, 3);
+            login.bind(2, query->from->id);
+            login.exec();
+
+            bot.getApi().sendMessage(query->message->chat->id, "Введіть ваш логін:");
+        }
+        else if (query->data == "Logout") {
+            SQLite::Statement updateQuery(db, "UPDATE users SET displayNikname = ?, isLogined = ? WHERE idTg = ?");
+            updateQuery.bind(1, "USER");
+            updateQuery.bind(2, 0);
+            updateQuery.bind(3, query->from->id);
+            updateQuery.exec();
+
+            bot.getApi().sendMessage(query->message->chat->id, "Ви вийшли з акаунта");
+        }
+        else if (query->data == "startGame") {
+            TgBot::InlineKeyboardMarkup::Ptr keyboard1(new TgBot::InlineKeyboardMarkup);
+            TgBot::InlineKeyboardButton::Ptr Button(new TgBot::InlineKeyboardButton);
+            Button->text = "Почати";
+            Button->callbackData = "Game";
+            keyboard1->inlineKeyboard.push_back({ Button });
+
+
+            TgBot::Message::Ptr sentMessage = bot.getApi().sendMessage(query->from->id, "Щоб почати гру натисніть кнопку", false, 0, keyboard1);
+
+            std::cout << sentMessage << std::endl;
+            if (sentMessage) {
+                messageId = sentMessage->messageId; // Перевірка, чи отримано messageId
+                std::cout << messageId << std::endl;
+            }
+            bot.getApi().deleteMessage(query->message->chat->id, messageId - 1);
+
+
+            SQLite::Statement checkUser(db, "SELECT COUNT(*) FROM leaderboard WHERE idTg = ?");
+            checkUser.bind(1, query->from->id);
+            checkUser.executeStep();
+
+            int userExists = checkUser.getColumn(0).getInt();  // 1 або 0
+
+            if (userExists == 0) {
+                // Якщо запису немає — додаємо нового користувача
+                SQLite::Statement insertUser(db, "INSERT INTO leaderboard (idTg, score) VALUES (?, ?)");
+                insertUser.bind(1, query->from->id);
+                insertUser.bind(2, 0);
+                insertUser.exec();
+            }
+            else {
+                // Якщо запис є — оновлюємо score
+                SQLite::Statement zeroScore(db, "UPDATE leaderboard SET score = ? WHERE idTg = ?");
+                zeroScore.bind(1, 0);
+                zeroScore.bind(2, query->from->id);
+                zeroScore.exec();
+            }
+
+        }
+        else if (query->data == "Game") {
+            if (messageId == -1) { // Перевірка, чи є дійсний messageId
+                bot.getApi().sendMessage(query->message->chat->id, "Помилка: не знайдено повідомлення для редагування. Натисніть 'Почати' ще раз.");
+                return;
+            }
+
+
+            int score = 0;
+            SQLite::Statement getScore(db, "SELECT score FROM leaderboard WHERE idTg = ?");
+            getScore.bind(1, query->from->id);
+            if (getScore.executeStep())
+            {
+                score = getScore.getColumn(0).getInt();
+            }
+            std::cout << "score is " << score << std::endl;
+
+            if (query && query->message && query->message->chat) {
+
+                firstMiniGame(query->from->id, messageId);
+            }
+            else {
+                std::cerr << "Помилка: query, message або chat є nullptr!" << std::endl;
+            }
+
+            SQLite::Statement updateScore(db, "UPDATE leaderboard SET score = ? WHERE idTg = ?");
+            updateScore.bind(1, ++score);
+            updateScore.bind(2, query->from->id);
+            updateScore.exec();
+
+        }
+        else if (query->data == "ENDgame")
         {
 
+
+
+            bool isLogined = false;
+            SQLite::Statement getLogin(db, "SELECT isLogined FROM users WHERE idTg = ?");
+            getLogin.bind(1, query->from->id);
+            if (getLogin.executeStep()) {
+                isLogined = getLogin.getColumn(0).getInt();
+            }
+
+
+
+            if (isLogined)
+            {
+
+                SQLite::Statement getInfo(db, "SELECT * FROM leaderboard WHERE idTg = ?");
+                getInfo.bind(1, query->from->id);
+                int max = 0, newScore = 0;
+                if (getInfo.executeStep()) {
+                    newScore = getInfo.getColumn(2).getInt();
+                    max = getInfo.getColumn(3).getInt();
+                }
+
+                if (max == 0)
+                {
+                    bot.getApi().editMessageText("Ви програли, ваш новий рекорд: " + std::to_string(newScore), query->message->chat->id, messageId);
+                    SQLite::Statement updateScores(db, "UPDATE leaderboard SET score = ?, maxScore = ? WHERE idTg = ?");
+                    updateScores.bind(1, 0);
+                    updateScores.bind(2, newScore);
+                    updateScores.bind(3, query->from->id);
+                    updateScores.exec();
+                }
+                else if (newScore > max)
+                {
+                    bot.getApi().editMessageText("Ви побили свій рекорд! \n Ваш новий рекорд: " + std::to_string(newScore), query->message->chat->id, messageId);
+                    SQLite::Statement updateScors(db, "UPDATE leaderboard SET score = ?, maxScore = ? WHERE idTg = ?");
+                    updateScors.bind(1, 0);
+                    updateScors.bind(2, newScore);
+                    updateScors.bind(3, query->from->id);
+                    updateScors.exec();
+                }
+                else
+                {
+                    bot.getApi().editMessageText("Ви не змогли побити всій минулий рекорд (" + std::to_string(max) +
+                        ") \n Кількість балів у новій спробі: " + std::to_string(newScore), query->message->chat->id, messageId);
+                    SQLite::Statement updateScore(db, "UPDATE leaderboard SET score = ? WHERE idTg = ?");
+                    updateScore.bind(1, 0);
+                    updateScore.bind(2, query->from->id);
+                    updateScore.exec();
+                }
+
+
+            }
+            else
+            {
+                bot.getApi().editMessageText("Oops, login to come in leaderboard", query->message->chat->id, messageId);
+
+                SQLite::Statement updateScore(db, "UPDATE leaderboard SET score = ? WHERE idTg = ?");
+                updateScore.bind(1, 0);
+                updateScore.bind(2, query->from->id);
+                updateScore.exec();
+            }
+        }
+        else if (query->data == "leaders")
+        {
+            std::string leaderboardText = "🏆 Топ гравців:\n";
+            SQLite::Statement getTopPlayers(db, "SELECT idTg, maxScore FROM leaderboard ORDER BY maxScore DESC LIMIT 5");
+
+            int rank = 1;
+            bool hasPlayers = false;  // Перевірка, чи є хоча б один запис
+
+            while (getTopPlayers.executeStep()) {
+                hasPlayers = true;
+                int64_t userId = getTopPlayers.getColumn(0).getInt64();
+                int userScore = getTopPlayers.getColumn(1).getInt();
+
+                SQLite::Statement sel(db, "SELECT userNikname FROM users WHERE idTg = ?");
+                sel.bind(1, userId);
+                std::string displayNikname;
+
+                if (sel.executeStep()) {
+                    displayNikname = sel.getColumn(0).getString();
+                }
+
+                std::cout << "User ID: " << userId << ", Nikname: " << displayNikname << std::endl;
+
+                leaderboardText += std::to_string(rank) + ". " + displayNikname + " - " + std::to_string(userScore) + " points\n";
+                rank++;
+            }
+
+            // Якщо в базі немає записів
+            if (!hasPlayers) {
+                leaderboardText = "❌ У таблиці поки що немає гравців.";
+            }
+
+            // Надсилаємо повідомлення користувачеві
+            bot.getApi().sendMessage(query->from->id, leaderboardText);
         }
         });
 
 
     bot.getEvents().onAnyMessage([&bot](TgBot::Message::Ptr message) {
         if (StringTools::startsWith(message->text, "/start")) {
+            return;
+        }
+
+
+        if (StringTools::startsWith(message->text, "/get_photo")) {
+            return;
+        }
+        if (message->photo.size() > 0) {
+            // Якщо є фото, беремо найкраще фото (найбільший розмір)
+            TgBot::PhotoSize::Ptr bestPhoto = message->photo.back();
+            std::string fileId = bestPhoto->fileId;
+
+
+
+
+
+            SQLite::Statement selectPhoto(db, "SELECT id FROM photo_info ORDER BY id DESC LIMIT 1;");
+            SQLite::Statement insertPhotoNextStep(db, "UPDATE photo_info SET photoNewName = ? WHERE id = ?");
+
+            //якщо повыдомлення надане з фото
+            if (!message->caption.empty()) {
+                SQLite::Statement insertPhoto(db, "INSERT INTO photo_info (idTg, photoUserName) VALUES (?, ?)");
+                insertPhoto.bind(1, message->chat->id);
+                insertPhoto.bind(2, message->caption);
+                insertPhoto.exec();
+
+                std::string saveName = " ";
+
+                if (selectPhoto.executeStep())
+                    saveName = selectPhoto.getColumn(0).getString();
+
+                std::string savePath = "AllPhoto\\" + saveName + ".jpg";
+
+                insertPhotoNextStep.bind(1, savePath);
+                insertPhotoNextStep.bind(2, std::stoi(saveName));
+                insertPhotoNextStep.exec();
+
+                downloadPhoto(fileId, bot, savePath);
+                bot.getApi().sendMessage(message->chat->id, "Фото збережено!");
+            }
+            else
+            {
+                SQLite::Statement getIsLoginedProcces(db, "Update users SET isLoginedProcces = ? WHERE idTg = ?");
+                getIsLoginedProcces.bind(1, 5);
+                getIsLoginedProcces.bind(2, message->chat->id);
+                getIsLoginedProcces.exec();
+
+
+                SQLite::Statement insertPhoto(db, "INSERT INTO photo_info (idTg) VALUES (?)");
+                insertPhoto.bind(1, message->chat->id);
+                insertPhoto.exec();
+
+
+                std::string saveName = " ";
+                if (selectPhoto.executeStep())
+                    saveName = selectPhoto.getColumn(0).getString();
+
+                std::string savePath = "AllPhoto\\" + saveName + ".jpg";
+                insertPhotoNextStep.bind(1, savePath);
+                insertPhotoNextStep.bind(2, std::stoi(saveName));
+                insertPhotoNextStep.exec();
+
+                downloadPhoto(fileId, bot, savePath);
+                bot.getApi().sendMessage(message->chat->id, "Введіть назву для фото");
+
+
+
+            }
+
+            /*std::string name = "2323";
+
+            std::string savePath = name+".jpg";*/
+            /*downloadPhoto(fileId, bot, savePath);
+
+            bot.getApi().sendMessage(message->chat->id, "Фото збережено в " + savePath);
+      std::cout << "messageName " << messageName << std::endl;*/
             return;
         }
 
@@ -139,14 +919,15 @@ int main() {
         }
 
         switch (forSwitch) {
-        case 0: // Користувач не зареєстрований
+            // Користувач не зареєстрований
+        case 0:
+        {
             bot.getApi().sendMessage(message->chat->id, "Ваше повідомлення: " + message->text);
-            break;
-
-
+        }
+        break;
         case 1:
         {
-            SQLite::Statement checkQuery(db, "SELECT COUNT(*) FROM users WHERE userNikname = ?");
+            SQLite::Statement checkQuery(db, "SELECT COUNT(*) FROM users WHERE displayNikname = ?");
             checkQuery.bind(1, message->text);  // Зв'язуємо значення імені
 
             int count;
@@ -159,10 +940,11 @@ int main() {
             }
             else
             {
-                SQLite::Statement reg(db, "UPDATE users SET userNikname = ?, isLoginedProcces = ? WHERE idTg = ?");
+                SQLite::Statement reg(db, "UPDATE users SET displayNikname = ?, userNikname = ?, isLoginedProcces = ? WHERE idTg = ?");
                 reg.bind(1, message->text);
-                reg.bind(2, 2);  // Тепер чекаємо пароль
-                reg.bind(3, message->chat->id);
+                reg.bind(2, message->text);
+                reg.bind(3, 2);  // Тепер чекаємо пароль
+                reg.bind(4, message->chat->id);
                 reg.exec();
                 bot.getApi().sendMessage(message->chat->id, "Придумайте пароль: ");
             }
@@ -179,7 +961,99 @@ int main() {
             bot.getApi().sendMessage(message->chat->id, "Реєстрація завершена!");
         }
         break;
+        case 3:
+        {
+            SQLite::Statement checkQuery(db, "SELECT COUNT(*) FROM users WHERE userNikname = ?");
+            checkQuery.bind(1, message->text);  // Зв'язуємо значення імені
 
+            int count = 0;
+            if (checkQuery.executeStep()) {
+                count = checkQuery.getColumn(0).getInt();  // Отримуємо кількість знайдених записів
+            }
+            if (count == 0) {
+                bot.getApi().sendMessage(message->chat->id, "Такого логіну не існує ❌");
+                return;  // Вихід із функції, щоб уникнути подальших помилок
+            }
+            SQLite::Statement logLogin(db, "SELECT userNikname FROM users WHERE idTg = ?");
+            logLogin.bind(1, message->chat->id);
+
+            std::string checkNikname;
+            if (logLogin.executeStep()) {
+                checkNikname = logLogin.getColumn(0).getString();
+            }
+
+
+            if (checkNikname == message->text)
+            {
+                SQLite::Statement nextStep(db, "UPDATE users SET isLoginedProcces = ? WHERE idTg = ?");
+                nextStep.bind(1, 4);
+                nextStep.bind(2, message->chat->id);
+                nextStep.exec();
+
+
+                bot.getApi().sendMessage(message->chat->id, "Введіть пароль:");
+
+            }
+            else
+            {
+                bot.getApi().sendMessage(message->chat->id, "Неправильний логін!");
+            }
+
+        }
+        break;
+        case 4:
+        {
+            SQLite::Statement logPassword(db, "SELECT password FROM users WHERE idTg = ?");
+            logPassword.bind(1, message->chat->id);
+
+            std::string checkPassword;
+            if (logPassword.executeStep())
+            {
+                checkPassword = logPassword.getColumn(0).getString();
+            }
+
+            if (checkPassword == message->text)
+            {
+                SQLite::Statement finalStep(db, "UPDATE users SET displayNikname = userNikname , isLoginedProcces = ?, isLogined = ? WHERE idTg = ?");
+                finalStep.bind(1, 0);
+                finalStep.bind(2, 1);
+                finalStep.bind(3, message->chat->id);
+                finalStep.exec();
+
+
+                bot.getApi().sendMessage(message->chat->id, "Ви увійшли в акаунт!");
+
+            }
+            else
+            {
+                bot.getApi().sendMessage(message->chat->id, "Неправильний пароль!");
+            }
+
+
+        }
+        break;
+
+        //Отримати фото ВІД користувача
+        case 5:
+        {
+            if (message->text == "/start" || message->text == "/get_photo")
+            {
+                bot.getApi().sendMessage(message->chat->id, "Ви не ввели назву для фото!");
+            }
+            else
+            {
+                bot.getApi().sendMessage(message->chat->id, "nope");
+
+            }
+        }
+        break;
+
+        //Отримати фото ДЛЯ користувача
+        case 6:
+        {
+
+        }
+        break;
 
         default:  // Якщо значення для isLogined некоректне
             bot.getApi().sendMessage(message->chat->id, "Невідомий статус користувача.");
