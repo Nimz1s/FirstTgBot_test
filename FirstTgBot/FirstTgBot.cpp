@@ -637,7 +637,7 @@ int main() {
         SQLite::Statement query(db, "SELECT COUNT(*) FROM users WHERE idTg = :userID");
         query.bind(":userID", message->chat->id); // Привязка значения к
         if (query.executeStep()) {
-            int count = query.getColumn(0).getInt();
+            int64_t count = query.getColumn(0).getInt();
             if (count > 0) {  // Пoлучение значения COUNT(*)
                 std::cout << "ID" << message->chat->id << " found." << std::endl;
             }
@@ -1039,7 +1039,7 @@ int main() {
             {
                 bot.getApi().sendMessage(message->chat->id, "Щоб мати доступ до функції потрібно бути зареєстрованим");
             }
-            
+
 
             /*std::string name = "2323";
 
@@ -1062,7 +1062,6 @@ int main() {
                 bot.getApi().sendMessage(message->chat->id, response);
             }
         }
-
 
 
 
