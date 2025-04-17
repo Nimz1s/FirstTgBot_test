@@ -476,7 +476,11 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
     }
 
     // Оновлюємо photoCounterInPull в залежності від напрямку
-    if (whatDo == '+')
+    if (whatDo == '|')
+    {
+        photoCounterInPull = photoCounterInPull;
+    }
+    else if (whatDo == '+')
     {
         if (photoCounterInPull + 2 <= countOfnullsPhoto)
         {
@@ -501,6 +505,7 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
 
     // Вибір фото з бази даних на основі photoCounterInPull
     SQLite::Statement getPhotoWithoutName(db, "SELECT id FROM photo_info WHERE idTg = ? AND photoUserName IS NULL LIMIT 2 OFFSET ?");
+    SQLite::Statement updateIdPhoto(db, "UPDATE photo_info SET messageIdTg = ? WHERE id = ?");
     getPhotoWithoutName.bind(1, message->chat->id);
     getPhotoWithoutName.bind(2, photoCounterInPull);
     int photoCount = 0;
@@ -509,7 +514,16 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
         std::string saveName = getPhotoWithoutName.getColumn(0).getString();
         std::string photoPath = "AllPhoto\\" + saveName + ".jpg";
         std::cout << "saveName: " << saveName << std::endl;
-        bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(photoPath, "image/jpeg"));
+
+        // Відправляємо фото та зберігаємо messageId
+        TgBot::Message::Ptr sentMsg = bot.getApi().sendPhoto( message->chat->id,TgBot::InputFile::fromFile(photoPath, "image/jpeg"));
+
+        // Оновлюємо messageId для цього фото
+        updateIdPhoto.bind(1, sentMsg->messageId);
+        updateIdPhoto.bind(2, std::stoi(saveName));
+        updateIdPhoto.exec();
+        updateIdPhoto.reset();
+
         photoCount++;
     }
 
@@ -551,18 +565,9 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
         previousPhoto->text = "Минулі фото";
         previousPhoto->callbackData = "PreviousPhoto";
         keyboardPhoto->inlineKeyboard.push_back({ previousPhoto });
-        bot.getApi().sendMessage(message->chat->id, "Поки з багом), спробуйте повернутись на попередні фото наступною кнопкною:", false, 0, keyboardPhoto);
+        bot.getApi().sendMessage(message->chat->id, "Фотографій більше немає, поверніться до фото наступною кнопкою:", false, 0, keyboardPhoto);
         
     }
-
-    // Відправка фото
-    
-
-    // Визначаємо правильну позицію для повідомлення
-    
-
-    // Оновлення лічильника після відправки фото
-    //photoCounterInPull += photoCount;
 
     std::cout << "photoCounterInPull: " << photoCounterInPull << std::endl;
 }
@@ -575,7 +580,7 @@ int main() {
 
     db.exec("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY UNIQUE, idTg INT, displayNikname TEXT, userNikname TEXT, password TEXT, isLoginedProcces INT, isLogined INT)");
     db.exec("CREATE TABLE IF NOT EXISTS leaderboard(id INTEGER PRIMARY KEY UNIQUE, idTg INT, score INT, maxScore INT)");
-    db.exec("CREATE TABLE IF NOT EXISTS photo_info(id INTEGER PRIMARY KEY UNIQUE, idTg INT, photoNewName TEXT, photoUserName TEXT)");
+    db.exec("CREATE TABLE IF NOT EXISTS photo_info(id INTEGER PRIMARY KEY UNIQUE, idTg INT, photoNewName TEXT, photoUserName TEXT, messageIdTg INT DEFAULT 0)");
 
 
 
@@ -945,7 +950,7 @@ int main() {
             bot.getApi().sendMessage(query->from->id, leaderboardText);
         }
         if (query->data == "startPhoto") {
-            char vuvid = '+';  // Починаємо показ фото після натискання кнопки "Почати"
+            char vuvid = '|';  // Починаємо показ фото після натискання кнопки "Почати"
             pullOfNullPhoto(bot, query->message, vuvid);
         }
         else if (query->data == "nextPhoto") {
@@ -964,8 +969,6 @@ int main() {
         if (StringTools::startsWith(message->text, "/start")) {
             return;
         }
-
-
         if (StringTools::startsWith(message->text, "/get_photo")) {
             return;
         }
@@ -1015,12 +1018,6 @@ int main() {
                 //якщо ні то зберігаємо в пул очікування
                 else
                 {
-                    /*SQLite::Statement getIsLoginedProcces(db, "Update users SET isLoginedProcces = ? WHERE idTg = ?");
-                    getIsLoginedProcces.bind(1, 5);
-                    getIsLoginedProcces.bind(2, message->chat->id);
-                    getIsLoginedProcces.exec();*/
-
-
                     SQLite::Statement insertPhoto(db, "INSERT INTO photo_info (idTg) VALUES (?)");
                     insertPhoto.bind(1, message->chat->id);
                     insertPhoto.exec();
@@ -1036,10 +1033,6 @@ int main() {
                     insertPhotoNextStep.exec();
 
                     downloadPhoto(fileId, bot, savePath);
-                    bot.getApi().sendMessage(message->chat->id, "Введіть назву для фото");
-
-
-
                 }
             }
             else
@@ -1057,6 +1050,21 @@ int main() {
             std::cout << "messageName " << messageName << std::endl;*/
             return;
         }
+        if (message->replyToMessage != nullptr) {
+            int repliedMessageId = message->replyToMessage->messageId;
+
+            if (!message->replyToMessage->photo.empty()) {
+                SQLite::Statement updateUserNamePhoto(db, "UPDATE photo_info SET photoUserName = ? WHERE messageIdTg = ? ");
+                updateUserNamePhoto.bind(1, "ababagalamaga");
+                updateUserNamePhoto.bind(2, std::to_string(message->replyToMessage->messageId));
+                updateUserNamePhoto.exec();
+                std::string response = "Ти відповів на повідомлення з фото! ID повідомлення: " + std::to_string(repliedMessageId);
+                bot.getApi().sendMessage(message->chat->id, response);
+            }
+        }
+
+
+
 
         int forSwitch = 0;
         SQLite::Statement forSwitchs(db, "SELECT isLoginedProcces FROM users WHERE idTg = ?");
@@ -1217,8 +1225,9 @@ int main() {
 
 
     try {
-        bot.getApi().deleteWebhook();
+        
         printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
+        bot.getApi().deleteWebhook();
         TgBot::TgLongPoll longPoll(bot);
         while (true) {
             printf("Long poll started\n");
