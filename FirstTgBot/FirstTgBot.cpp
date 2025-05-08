@@ -5,6 +5,17 @@
 #include <ctime>
 #include <curl/curl.h>
 
+#include <algorithm>
+#include <regex>
+#include <filesystem>
+#include <iostream>
+
+#include <fstream>
+#include <memory>
+#include <sstream>
+#include <iostream>
+
+
 #define SQLITECPP_COMPILE_DLL
 #include <SQLiteCPP/SQLiteCpp.h>
 
@@ -19,6 +30,7 @@ SQLite::Database db("test.db", SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
 long messageId = -1;
 int photoCounterInPull = 0;
 int countOfnullsPhoto = 0;
+char lastMode;
 
 
 
@@ -396,6 +408,8 @@ void firstMiniGame(const int64_t queryId, int messageId) {
 
 
 //////////////////////////////
+
+
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t totalSize = size * nmemb;
     std::ofstream* outFile = static_cast<std::ofstream*>(userp);
@@ -437,9 +451,6 @@ void downloadPhoto(const std::string& fileId, TgBot::Bot& bot, const std::string
     //    remove(savePath.c_str());  // Видаляємо файл, якщо формат неправильний
     //}
 }
-
-
-/////////////////////////////
 void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
 {
     TgBot::InlineKeyboardMarkup::Ptr keyboardPhoto(new TgBot::InlineKeyboardMarkup);
@@ -448,17 +459,39 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
     TgBot::InlineKeyboardButton::Ptr previousPhoto(new TgBot::InlineKeyboardButton);
 
     keyboardPhoto->inlineKeyboard.clear();
-
+    if (whatDo=='|' || whatDo == 'E')
+    {
+        lastMode = whatDo;
+    }
     // Отримуємо кількість фото без імені
     countOfnullsPhoto = 0;
-    SQLite::Statement getPhotoWithoutName2(db, "SELECT id FROM photo_info WHERE idTg = ? AND photoUserName IS NULL");
-    getPhotoWithoutName2.bind(1, message->chat->id);
-    while (getPhotoWithoutName2.executeStep())
+    if (lastMode =='|' || whatDo=='.')
     {
-        countOfnullsPhoto++;
+        SQLite::Statement getPhotoWithoutName2(db, "SELECT id FROM photo_info WHERE idTg = ? AND photoUserName IS NULL");
+        getPhotoWithoutName2.bind(1, message->chat->id);
+        while (getPhotoWithoutName2.executeStep()) {
+            countOfnullsPhoto++;
+        }
+        std::cout << "countOfnullsPhoto (I): " << countOfnullsPhoto << std::endl;
     }
-    std::cout << "countOfnullsPhoto: " << countOfnullsPhoto << std::endl;
+    else if (lastMode == 'E')
+    {
+        SQLite::Statement getPhotoWithName2(db, "SELECT id FROM photo_info WHERE idTg = ? AND photoUserName IS NOT NULL");
+        getPhotoWithName2.bind(1, message->chat->id);
+        while (getPhotoWithName2.executeStep()) {
+            countOfnullsPhoto++;
+        }
+        std::cout << "countOfnullsPhoto (E): " << countOfnullsPhoto << std::endl;
+
+    }
+    else
+    {
+
+    }
     
+    
+    
+
 
 
 
@@ -467,16 +500,22 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
     if (whatDo == '.')
     {
         TgBot::InlineKeyboardButton::Ptr startButton(new TgBot::InlineKeyboardButton);
-        startButton->text = "Почати перегляд фото";
+        TgBot::InlineKeyboardButton::Ptr EditNamePhoto(new TgBot::InlineKeyboardButton);
+
+        startButton->text = "Почати перегляд фото у пуллі";
         startButton->callbackData = "startPhoto";
+        EditNamePhoto->text = "Змінити назву фото";
+        EditNamePhoto->callbackData = "EditNamePhoto";
+
         keyboardPhoto->inlineKeyboard.push_back({ startButton });
+        keyboardPhoto->inlineKeyboard.push_back({ EditNamePhoto });
 
         bot.getApi().sendMessage(message->chat->id, "Натисніть кнопку, щоб почати перегляд фото", false, 0, keyboardPhoto);
         return; // Виходимо, не відправляючи фото
     }
 
     // Оновлюємо photoCounterInPull в залежності від напрямку
-    if (whatDo == '|')
+    if (whatDo == '|' || whatDo == 'E')
     {
         photoCounterInPull = photoCounterInPull;
     }
@@ -485,10 +524,12 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
         if (photoCounterInPull + 2 <= countOfnullsPhoto)
         {
             photoCounterInPull += 2;  // рухаємось вперед
+            whatDo = lastMode;
         }
         else
         {
-            photoCounterInPull = photoCounterInPull+(countOfnullsPhoto % 2);  // максимальна кількість фото
+            photoCounterInPull = photoCounterInPull + (countOfnullsPhoto % 2);  // максимальна кількість фото
+            whatDo = lastMode;
         }
     }
     else if (whatDo == '-')
@@ -496,49 +537,110 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
         if (photoCounterInPull - 2 >= 0)
         {
             photoCounterInPull -= 2;  // рухаємось назад
+            whatDo = lastMode;
         }
         else
         {
             photoCounterInPull = 0;  // мінімум 0
+            whatDo = lastMode;
+        }
+    }
+
+
+    int position = photoCounterInPull;
+    if (whatDo == '|')
+    {
+        lastMode = '|';
+        SQLite::Statement getPhotoWithoutName(db, "SELECT id FROM photo_info WHERE idTg = ? AND photoUserName IS NULL LIMIT 2 OFFSET ?");
+        SQLite::Statement updateIdPhoto(db, "UPDATE photo_info SET messageIdTg = ? WHERE id = ?");
+        getPhotoWithoutName.bind(1, message->chat->id);
+        getPhotoWithoutName.bind(2, photoCounterInPull);
+        int photoCount = 0;
+        while (getPhotoWithoutName.executeStep())
+        {
+            std::string saveName = getPhotoWithoutName.getColumn(0).getString();
+            std::string photoPath = "AllPhoto\\" + saveName + ".jpg";
+            std::cout << "saveName: " << saveName << std::endl;
+
+            // Відправляємо фото та зберігаємо messageId
+            TgBot::Message::Ptr sentMsg = bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(photoPath, "image/jpeg"));
+
+            // Оновлюємо messageId для цього фото
+            updateIdPhoto.bind(1, sentMsg->messageId);
+            updateIdPhoto.bind(2, std::stoi(saveName));
+            updateIdPhoto.exec();
+            updateIdPhoto.reset();
+
+            photoCount++;
+        }
+        position += photoCount;
+    }
+    else if (whatDo == 'E')
+    {
+        lastMode = 'E';
+        SQLite::Statement getPhotoWithName(db, "SELECT id FROM photo_info WHERE idTg = ? AND photoUserName IS NOT NULL LIMIT 2 OFFSET ?");
+        SQLite::Statement updateIdPhoto(db, "UPDATE photo_info SET messageIdTg = ? WHERE id = ?");
+        getPhotoWithName.bind(1, message->chat->id);
+        getPhotoWithName.bind(2, photoCounterInPull);
+        int photoCount = 0;
+        while (getPhotoWithName.executeStep())
+        {
+            std::string saveName = getPhotoWithName.getColumn(0).getString();
+            std::string photoPath = "AllPhoto\\" + saveName + ".jpg";
+
+            // Відправляємо фото та зберігаємо messageId
+            TgBot::Message::Ptr sentMsg = bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(photoPath, "image/jpeg"));
+
+            // Оновлюємо messageId для цього фото
+            updateIdPhoto.bind(1, sentMsg->messageId);
+            updateIdPhoto.bind(2, std::stoi(saveName));
+            updateIdPhoto.exec();
+            updateIdPhoto.reset();
+
+            photoCount++;
+        }
+        position += photoCount;
+    }
+    else if (whatDo == 'R')
+    {
+        SQLite::Statement updateIdPhoto(db, "UPDATE photo_info SET messageIdTg = ? WHERE id = ?");
+        SQLite::Statement newestPhoto(db, "SELECT * FROM photo_info WHERE photoUserName = 'Розклад' ORDER BY createdAt DESC LIMIT 1");
+
+        if (newestPhoto.executeStep()) {
+            std::string id = newestPhoto.getColumn("id").getString();
+
+            std::string photoPath = "AllPhoto\\" + id + ".jpg";
+
+            // Відправляємо фото та зберігаємо messageId
+            TgBot::Message::Ptr sentMsg = bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(photoPath, "image/jpeg"));
+
+            updateIdPhoto.bind(1, sentMsg->messageId);
+            updateIdPhoto.bind(2, std::stoi(id));
+            updateIdPhoto.exec();
+        }
+        else {
+            bot.getApi().sendPhoto(message->chat->id, "Розкладу ще немає");
         }
     }
 
     // Вибір фото з бази даних на основі photoCounterInPull
-    SQLite::Statement getPhotoWithoutName(db, "SELECT id FROM photo_info WHERE idTg = ? AND photoUserName IS NULL LIMIT 2 OFFSET ?");
-    SQLite::Statement updateIdPhoto(db, "UPDATE photo_info SET messageIdTg = ? WHERE id = ?");
-    getPhotoWithoutName.bind(1, message->chat->id);
-    getPhotoWithoutName.bind(2, photoCounterInPull);
-    int photoCount = 0;
-    while (getPhotoWithoutName.executeStep())
-    {
-        std::string saveName = getPhotoWithoutName.getColumn(0).getString();
-        std::string photoPath = "AllPhoto\\" + saveName + ".jpg";
-        std::cout << "saveName: " << saveName << std::endl;
 
-        // Відправляємо фото та зберігаємо messageId
-        TgBot::Message::Ptr sentMsg = bot.getApi().sendPhoto( message->chat->id,TgBot::InputFile::fromFile(photoPath, "image/jpeg"));
 
-        // Оновлюємо messageId для цього фото
-        updateIdPhoto.bind(1, sentMsg->messageId);
-        updateIdPhoto.bind(2, std::stoi(saveName));
-        updateIdPhoto.exec();
-        updateIdPhoto.reset();
-
-        photoCount++;
-    }
 
     // Оновлення позиції після відправки фото
-    int position = photoCounterInPull + photoCount;
+
     // Логіка для кнопок
     if (countOfnullsPhoto == 0)
     {
-        bot.getApi().sendMessage(message->chat->id, "Фото немає");
+        bot.getApi().sendMessage(message->chat->id, "Фото більше немає");
+        return;
 
     }
-    /*else if (countOfnullsPhoto == 1) //повернути коли пофікшу логіку разування виводу фото
+    else if (countOfnullsPhoto == 1)
     {
         bot.getApi().sendMessage(message->chat->id, "Фотографії: " + std::to_string(position) + " з " + std::to_string(countOfnullsPhoto));
-    }*/
+        return;
+    }
     else if (photoCounterInPull == 0 && countOfnullsPhoto > 0)
     {
         keyboardPhoto->inlineKeyboard.clear();
@@ -546,6 +648,7 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
         nextPhoto->callbackData = "nextPhoto";
         keyboardPhoto->inlineKeyboard.push_back({ nextPhoto });
         bot.getApi().sendMessage(message->chat->id, "Фотографії: " + std::to_string(position) + " з " + std::to_string(countOfnullsPhoto), false, 0, keyboardPhoto);
+        return;
     }
     else if (photoCounterInPull > 0 && photoCounterInPull < countOfnullsPhoto)
     {
@@ -558,6 +661,7 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
         keyboardPhoto->inlineKeyboard.push_back({ nextPhoto });
         keyboardPhoto->inlineKeyboard.push_back({ previousPhoto });
         bot.getApi().sendMessage(message->chat->id, "Фотографії: " + std::to_string(position) + " з " + std::to_string(countOfnullsPhoto), false, 0, keyboardPhoto);
+        return;
     }
     else if (photoCounterInPull == countOfnullsPhoto)
     {
@@ -566,11 +670,146 @@ void pullOfNullPhoto(TgBot::Bot& bot, TgBot::Message::Ptr& message, char whatDo)
         previousPhoto->callbackData = "PreviousPhoto";
         keyboardPhoto->inlineKeyboard.push_back({ previousPhoto });
         bot.getApi().sendMessage(message->chat->id, "Фотографій більше немає, поверніться до фото наступною кнопкою:", false, 0, keyboardPhoto);
-        
+        return;
+
     }
 
     std::cout << "photoCounterInPull: " << photoCounterInPull << std::endl;
 }
+
+
+/////////////////////////////
+
+
+struct FileInfo {
+	int index; // Індекс файлу
+    std::string name;
+    /*std::string path;
+    std::size_t size;*/
+};
+
+namespace fs = std::filesystem;
+int extractNumber(const std::string& filename) {
+    std::smatch match;
+    std::regex pattern(R"(\b(\d+)\b)"); // Шукає перше число
+    if (std::regex_search(filename, match, pattern)) {
+        return std::stoi(match[1]);
+    }
+    return -1;
+}
+void allLabs(TgBot::Bot& bot, TgBot::Message::Ptr& message)
+{
+    
+
+    TgBot::InlineKeyboardMarkup::Ptr allLabs(new TgBot::InlineKeyboardMarkup);
+
+    TgBot::InlineKeyboardButton::Ptr algoritms(new TgBot::InlineKeyboardButton);
+    TgBot::InlineKeyboardButton::Ptr arhitectura(new TgBot::InlineKeyboardButton);
+    TgBot::InlineKeyboardButton::Ptr kdm(new TgBot::InlineKeyboardButton);
+
+    algoritms->text = "Алгоритми";
+    algoritms->callbackData = "algoritms";
+
+    arhitectura->text = "Архітектура";
+    arhitectura->callbackData = "arhitectura";
+
+    kdm->text = "КДМ";
+    kdm->callbackData = "kdm";
+
+
+    allLabs->inlineKeyboard.push_back({ algoritms });
+    allLabs->inlineKeyboard.push_back({ arhitectura });
+    allLabs->inlineKeyboard.push_back({ kdm });
+
+
+    TgBot::Message::Ptr sentMessage = bot.getApi().sendMessage(message->chat->id, "Список з лабораторними: ", false, 0, allLabs);
+
+    std::cout << sentMessage << std::endl;
+    if (sentMessage) {
+        messageId = sentMessage->messageId; // Перевірка, чи отримано messageId
+        std::cout << messageId << std::endl;
+    }
+    bot.getApi().deleteMessage(message->chat->id, messageId - 1);
+    
+
+    return;
+}
+void outLabs(TgBot::Bot& bot, TgBot::Message::Ptr& message, std::string path)
+{
+    std::vector<FileInfo> files;
+
+    try {
+        for (const auto& entry : fs::directory_iterator(path)) {
+            if (entry.is_regular_file()) {
+                FileInfo fileInfo;
+                fileInfo.name = entry.path().filename().string();
+                files.push_back(fileInfo);
+            }
+        }
+
+        // Натуральне сортування за номером лабораторної
+        std::sort(files.begin(), files.end(), [](const FileInfo& a, const FileInfo& b) {
+            return extractNumber(a.name) < extractNumber(b.name);
+            });
+
+        // Вивід
+        std::string labs = "";
+        int countLabs = 0;
+        std::vector<FileInfo> lab;
+        int itterator = 0;
+        FileInfo fileInfo;
+        for (const auto& file : files) {
+
+            countLabs++;
+        }
+        for (const auto& file : files) {
+
+            labs += file.name + "\n";
+            
+            fileInfo.index = itterator;  // Присвоюємо поточний індекс
+            fileInfo.name = file.name;  // Присвоюємо ім'я файлу
+
+            lab.push_back(fileInfo);  // Додаємо до вектора
+            itterator++;
+
+        }
+        for (const auto& lab : lab) {
+            std::cout << "Ітератор: " << lab.index << ", Назва: " << lab.name << std::endl;
+        }
+
+        bot.getApi().sendMessage(message->chat->id, labs);
+
+
+		SQLite::Statement updateToFile(db, "UPDATE photo_info SET messageIdTg = ? WHERE idTg = ? AND messageIdTg = 0");
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "Помилка: " << e.what() << std::endl;
+    }
+
+
+
+
+    //std::string filePath = "D:/4NYHT/labs/algoritms/Алгоритми Лаба 1.txt";  // шлях до файлу
+    //std::ifstream file(filePath, std::ios::binary);
+    //if (!file.is_open()) {
+    //    bot.getApi().sendMessage(message->chat->id, "Не вдалося відкрити файл.");
+    //    return;
+    //}
+
+    //// Зчитування вмісту файлу у std::ostringstream
+    //std::ostringstream oss;
+    //oss << file.rdbuf();
+
+    //// Підготовка InputFile
+    //TgBot::InputFile::Ptr inputFile = std::make_shared<TgBot::InputFile>();
+    //inputFile->data = oss.str();               // ✅ Тепер тип правильний: std::string
+    //inputFile->fileName = "Алгоритми Лаба 1.txt";
+
+    //bot.getApi().sendDocument(message->chat->id, inputFile);
+
+    return;
+}
+
 
 
 int main() {
@@ -580,7 +819,7 @@ int main() {
 
     db.exec("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY UNIQUE, idTg INT, displayNikname TEXT, userNikname TEXT, password TEXT, isLoginedProcces INT, isLogined INT)");
     db.exec("CREATE TABLE IF NOT EXISTS leaderboard(id INTEGER PRIMARY KEY UNIQUE, idTg INT, score INT, maxScore INT)");
-    db.exec("CREATE TABLE IF NOT EXISTS photo_info(id INTEGER PRIMARY KEY UNIQUE, idTg INT, photoNewName TEXT, photoUserName TEXT, messageIdTg INT DEFAULT 0)");
+    db.exec("CREATE TABLE IF NOT EXISTS photo_info(id INTEGER PRIMARY KEY UNIQUE, idTg INT, photoNewName TEXT, photoUserName TEXT, messageIdTg INT DEFAULT 0, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)");
 
 
 
@@ -596,8 +835,15 @@ int main() {
 
         TgBot::BotCommand::Ptr sendPhoto(new TgBot::BotCommand);
         sendPhoto->command = "get_photo";
-        sendPhoto->description = "Відправити фото для збереження";
+        sendPhoto->description = "Коледж";
         commands.push_back(sendPhoto);
+
+        TgBot::BotCommand::Ptr Koledg(new TgBot::BotCommand);
+        Koledg->command = "koledg";
+        Koledg->description = "Відправити фото для збереження";
+        commands.push_back(Koledg);
+        
+
 
 
         bot.getApi().setMyCommands(commands); // Встановлення команд
@@ -727,15 +973,33 @@ int main() {
         {
             bot.getApi().sendMessage(message->chat->id, "Щоб мати доступ до функції потрібно бути зареєстрованим");
         }
-        
-
-
-
-        
         });
 
+    TgBot::InlineKeyboardMarkup::Ptr keyboardKoledg(new TgBot::InlineKeyboardMarkup);
+    bot.getEvents().onCommand("koledg", [&bot, keyboardKoledg](TgBot::Message::Ptr message) {
+        TgBot::InlineKeyboardButton::Ptr KoledgDz(new TgBot::InlineKeyboardButton);
+        TgBot::InlineKeyboardButton::Ptr KoledgLabu(new TgBot::InlineKeyboardButton);
+        TgBot::InlineKeyboardButton::Ptr Rosklad(new TgBot::InlineKeyboardButton);
 
 
+        Rosklad->text = "Розклад";
+        Rosklad->callbackData = "getRosklad";
+
+
+        KoledgLabu->callbackData = "Labu";
+        KoledgLabu->text = "Лабораторні";
+
+        KoledgDz->callbackData = "Dz";
+        KoledgDz->text = "ДЗ";
+
+        keyboardKoledg->inlineKeyboard.push_back({ KoledgLabu });
+        keyboardKoledg->inlineKeyboard.push_back({ KoledgDz });
+        keyboardKoledg->inlineKeyboard.push_back({ Rosklad });
+
+        bot.getApi().sendMessage(message->chat->id, "Perevrka", false, 0, keyboardKoledg);
+
+
+        });
 
 
 
@@ -949,6 +1213,8 @@ int main() {
             // Надсилаємо повідомлення користувачеві
             bot.getApi().sendMessage(query->from->id, leaderboardText);
         }
+
+
         if (query->data == "startPhoto") {
             char vuvid = '|';  // Починаємо показ фото після натискання кнопки "Почати"
             pullOfNullPhoto(bot, query->message, vuvid);
@@ -961,7 +1227,35 @@ int main() {
             char vuvid = '-';  // Перехід до попередніх фото
             pullOfNullPhoto(bot, query->message, vuvid);
         }
-        
+        if (query->data == "EditNamePhoto") {
+            SQLite::Statement editNamePhoto(db, "UPDATE users SET isLoginedProcces = ? WHERE idTg = ?");
+			editNamePhoto.bind(1, 5);
+			editNamePhoto.bind(2, query->from->id);
+			editNamePhoto.exec();
+			bot.getApi().sendMessage(query->message->chat->id, "Виберіть фото та введіть назву");
+
+            char vuvid = 'E';
+            pullOfNullPhoto(bot, query->message, vuvid);
+        }
+
+        else if (query->data == "getRosklad") {
+			bot.getApi().sendMessage(query->message->chat->id, "Зарашній розклад: ");
+
+            char vuvid = 'R';
+            pullOfNullPhoto(bot, query->message, vuvid);
+        }
+
+
+        if (query->data == "Labu")
+        {
+            allLabs(bot, query->message);
+        }
+        if (query->data == "algoritms")
+        {
+            /*"D:/4NYHT/labs/архітектура"*/
+            outLabs(bot, query->message, "D:/4NYHT/labs/algoritms");
+        }
+
         });
 
 
@@ -988,17 +1282,15 @@ int main() {
                 std::string fileId = bestPhoto->fileId;
 
 
-
-
-
                 SQLite::Statement selectPhoto(db, "SELECT id FROM photo_info ORDER BY id DESC LIMIT 1;");
                 SQLite::Statement insertPhotoNextStep(db, "UPDATE photo_info SET photoNewName = ? WHERE id = ?");
 
                 //якщо повідомлення надане з фото
                 if (!message->caption.empty()) {
-                    SQLite::Statement insertPhoto(db, "INSERT INTO photo_info (idTg, photoUserName) VALUES (?, ?)");
+                    SQLite::Statement insertPhoto(db, "INSERT INTO photo_info (idTg, photoUserName, messageIdTg) VALUES (?, ?, ?)");
                     insertPhoto.bind(1, message->chat->id);
                     insertPhoto.bind(2, message->caption);
+                    insertPhoto.bind(3, message->messageId);
                     insertPhoto.exec();
 
                     std::string saveName = " ";
@@ -1013,13 +1305,15 @@ int main() {
                     insertPhotoNextStep.exec();
 
                     downloadPhoto(fileId, bot, savePath);
-                    bot.getApi().sendMessage(message->chat->id, "Фото збережено!");
+                    bot.getApi().sendMessage(message->chat->id, "Ваше фото збережено!");
+                    
                 }
                 //якщо ні то зберігаємо в пул очікування
                 else
                 {
-                    SQLite::Statement insertPhoto(db, "INSERT INTO photo_info (idTg) VALUES (?)");
+                    SQLite::Statement insertPhoto(db, "INSERT INTO photo_info (idTg, messageIdTg) VALUES (?, ?)");
                     insertPhoto.bind(1, message->chat->id);
+                    insertPhoto.bind(2, message->messageId);
                     insertPhoto.exec();
 
 
@@ -1033,6 +1327,7 @@ int main() {
                     insertPhotoNextStep.exec();
 
                     downloadPhoto(fileId, bot, savePath);
+                    bot.getApi().sendMessage(message->chat->id, "Ваше фото добавлено в пулл!");
                 }
             }
             else
@@ -1050,22 +1345,59 @@ int main() {
             std::cout << "messageName " << messageName << std::endl;*/
             return;
         }
+
+        int forSwitch = 0;
         if (message->replyToMessage != nullptr) {
             int repliedMessageId = message->replyToMessage->messageId;
 
             if (!message->replyToMessage->photo.empty()) {
-                SQLite::Statement updateUserNamePhoto(db, "UPDATE photo_info SET photoUserName = ? WHERE messageIdTg = ? ");
-                updateUserNamePhoto.bind(1, "ababagalamaga");
-                updateUserNamePhoto.bind(2, std::to_string(message->replyToMessage->messageId));
-                updateUserNamePhoto.exec();
-                std::string response = "Ти відповів на повідомлення з фото! ID повідомлення: " + std::to_string(repliedMessageId);
-                bot.getApi().sendMessage(message->chat->id, response);
+                int haveText = 1;
+
+
+                SQLite::Statement checkNull(db, "SELECT photoUserName FROM photo_info WHERE messageIdTg = ?");
+                checkNull.bind(1, repliedMessageId);
+                if (checkNull.executeStep())
+                {
+                    haveText = checkNull.getColumn(0).getBytes();
+                }
+
+
+                SQLite::Statement forSwitchs(db, "SELECT isLoginedProcces FROM users WHERE idTg = ?");
+                forSwitchs.bind(1, message->chat->id);
+
+                if (forSwitchs.executeStep()) {
+                    forSwitch = forSwitchs.getColumn(0).getInt();
+                }
+                if (haveText == 0)
+                {
+                    SQLite::Statement updateUserNamePhoto(db, "UPDATE photo_info SET photoUserName = ? WHERE messageIdTg = ? ");
+                    updateUserNamePhoto.bind(1, message->text);
+                    updateUserNamePhoto.bind(2, std::to_string(message->replyToMessage->messageId));
+                    updateUserNamePhoto.exec();
+                    bot.getApi().sendMessage(message->chat->id, "Підпис для фото добавлено! ");
+                    return;
+                }
+                else if (forSwitch == 5)
+                {
+                    SQLite::Statement updateUserNamePhoto(db, "UPDATE photo_info SET photoUserName = ? WHERE messageIdTg = ? ");
+                    updateUserNamePhoto.bind(1, message->text);
+                    updateUserNamePhoto.bind(2, std::to_string(message->replyToMessage->messageId));
+                    updateUserNamePhoto.exec();
+                    bot.getApi().sendMessage(message->chat->id, "Підпис для фото обновлено! ");
+
+                    SQLite::Statement updateUserLogined(db, "UPDATE users SET isLoginedProcces = ? WHERE IdTg = ? ");
+                    updateUserLogined.bind(1, 0);
+					updateUserLogined.bind(2, message->chat->id);
+					updateUserLogined.exec();
+
+                    return;
+                }
             }
         }
 
 
 
-        int forSwitch = 0;
+        
         SQLite::Statement forSwitchs(db, "SELECT isLoginedProcces FROM users WHERE idTg = ?");
         forSwitchs.bind(1, message->chat->id);
 
@@ -1192,18 +1524,10 @@ int main() {
         }
         break;
 
-        //Отримати фото ВІД користувача
+        //Залишити пустим для іншої роботи
         case 5:
         {
-            if (message->text == "/start" || message->text == "/get_photo")
-            {
-                bot.getApi().sendMessage(message->chat->id, "Ви не ввели назву для фото!");
-            }
-            else
-            {
-                bot.getApi().sendMessage(message->chat->id, "nope");
-
-            }
+            
         }
         break;
 
@@ -1224,9 +1548,9 @@ int main() {
 
 
     try {
-        
-        printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
         bot.getApi().deleteWebhook();
+        printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
+        
         TgBot::TgLongPoll longPoll(bot);
         while (true) {
             printf("Long poll started\n");
